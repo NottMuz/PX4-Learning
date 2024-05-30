@@ -35,11 +35,10 @@
  * @file px4_simple_app.c
  * Minimal application example for PX4 autopilot
  *
- * @author Example User <mail@example.com>
+ * @muzz  User <muzzammil.r04@example.com>
  */
 
 #include <px4_platform_common/px4_config.h>
-#include <px4_platform_common/log.h>
 #include <px4_platform_common/tasks.h>
 #include <px4_platform_common/posix.h>
 #include <unistd.h>
@@ -49,36 +48,98 @@
 #include <math.h>
 
 #include <uORB/uORB.h>
-#include <uORB/topics/vehicle_acceleration.h>
+
+
+#include <px4_platform_common/log.h>
+
+//imports the sensor_combined topic for subscription
+#include <uORB/topics/sensor_combined.h>
+
+//imports the vehicle_attitude topic for publication
 #include <uORB/topics/vehicle_attitude.h>
 
+
+//The main function must be named <module_name>_main and exported from the module as shown.
 __EXPORT int px4_simple_app_main(int argc, char *argv[]);
+
+
+
 
 int px4_simple_app_main(int argc, char *argv[])
 {
+	//PX4_INFO is the equivalent of printf for the PX4 shell (included from px4_platform_common/log.h). 
+		//There are different log levels: PX4_INFO, PX4_WARN, PX4_ERR, PX4_DEBUG. Warnings and errors are 
+			//additionally added to the ULog 
 	PX4_INFO("Hello Sky!");
 
-	/* subscribe to vehicle_acceleration topic */
-	int sensor_sub_fd = orb_subscribe(ORB_ID(vehicle_acceleration));
+
+
+
+
+//-------------------------------------SUBSCRIBING-------------------------------------------------------
+	
+	//creates a subscription to the uORB message being sent by the sensor_combined topic via 
+		//its ORB (Object Request Broker) ID that is created by the ORB_ID function
+	int sensor_sub_fd = orb_subscribe(ORB_ID(sensor_combined));
+	//Note: The syntax here is quite interesting to me;
+		// int : identifies the variable type of the fd (file descriptor), after research it now makes sense
+				// a fd is a low-level interger handle used by an OS to identify things like files, sockets, pipes etc.
+		// sensor_sub_fd : this is the name of the file descriptor, this variable uniquely identifies
+				// this subscription to the topic, will be used to interact with it
+	
+
 	/* limit the update rate to 5 Hz */
 	orb_set_interval(sensor_sub_fd, 200);
 
-	/* advertise attitude topic */
-	struct vehicle_attitude_s att;
-	memset(&att, 0, sizeof(att));
-	orb_advert_t att_pub = orb_advertise(ORB_ID(vehicle_attitude), &att);
+//--------------------------------------------------------------------------------------------------------
 
-	/* one could wait for multiple topics with this technique, just using one here */
-	px4_pollfd_struct_t fds[] = {
-		{ .fd = sensor_sub_fd,   .events = POLLIN },
+
+
+
+//-------------------------------------ADVERTISING/PUBLISHING---------------------------------------------
+	//This structure will be used to hold the attitude data for the vehicle
+	struct vehicle_attitude_s att;
+
+	//initializes all fields in the "att" structure to 0
+	memset(&att, 0, sizeof(att));
+
+	//setups up the advertisement variable, and gives the memory address of the data being advertised
+	orb_advert_t att_pub_fd = orb_advertise(ORB_ID(vehicle_attitude), &att);
+//--------------------------------------------------------------------------------------------------------
+
+
+
+
+//-------------------------------------POLLING/LISTENING--------------------------------------------------
+/*
+	- "px4_pollfd_struct_t": It is a STRUCTURE TYPE defined by the Pixhawk codebase that provides a format
+	   to poll information
+
+	- ".fd": The struct requires the file descriptor so it knows where to poll info from
+
+	- ".events": Identifies what type of polling/polling information is being collects, see the documentation 
+		for the other commands
+*/
+/* one could wait for multiple topics with this technique, just using one here */
+px4_pollfd_struct_t fds[] = {
+    { .fd = sensor_sub_fd,   .events = POLLIN },
 		/* there could be more file descriptors here, in the form like:
 		 * { .fd = other_sub_fd,   .events = POLLIN },
 		 */
-	};
+};
+//--------------------------------------------------------------------------------------------------------
 
-	int error_counter = 0;
 
-	for (int i = 0; i < 5; i++) {
+
+
+
+
+
+int error_counter = 0;
+//-------------------------------------DISPLAYING & PUBLISHING DATA--------------------------------------------------
+//will poll and process sensor data 5 times
+for (int i = 0; i < 5; i++) {
+	
 		/* wait for sensor update of 1 file descriptor for 1000 ms (1 second) */
 		int poll_ret = px4_poll(fds, 1, 1000);
 
@@ -100,20 +161,20 @@ int px4_simple_app_main(int argc, char *argv[])
 
 			if (fds[0].revents & POLLIN) {
 				/* obtained data for the first file descriptor */
-				struct vehicle_acceleration_s accel;
+				struct sensor_combined_s raw;
 				/* copy sensors raw data into local buffer */
-				orb_copy(ORB_ID(vehicle_acceleration), sensor_sub_fd, &accel);
+				orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
 				PX4_INFO("Accelerometer:\t%8.4f\t%8.4f\t%8.4f",
-					 (double)accel.xyz[0],
-					 (double)accel.xyz[1],
-					 (double)accel.xyz[2]);
+					 (double)raw.accelerometer_m_s2[0],
+					 (double)raw.accelerometer_m_s2[1],
+					 (double)raw.accelerometer_m_s2[2]);
 
 				/* set att and publish this information for other apps
 				 the following does not have any meaning, it's just an example
 				*/
-				att.q[0] = accel.xyz[0];
-				att.q[1] = accel.xyz[1];
-				att.q[2] = accel.xyz[2];
+				att.q[0] = raw.accelerometer_m_s2[0];
+				att.q[1] = raw.accelerometer_m_s2[1];
+				att.q[2] = raw.accelerometer_m_s2[2];
 
 				orb_publish(ORB_ID(vehicle_attitude), att_pub, &att);
 			}
@@ -123,8 +184,49 @@ int px4_simple_app_main(int argc, char *argv[])
 			 */
 		}
 	}
+//--------------------------------------------------------------------------------------------------------
 
+
+
+
+
+
+
+
+
+//-------------------------------------DISPLAYING DATA--------------------------------------------------
+
+//creates an infinite loop, useful for continous operation in embedded systems etc.
+//while (true) {
+
+	/* wait for sensor update of 1 file descriptor for 1000 ms (1 second) */
+	//int poll_ret = px4_poll(fds, 1, 1000);
+	//..
+
+	//if there is data for the first entry in the array in the .revents feild (in the form of 0b0001)
+		// and it matches the value of POLLIN (in the form of 0b0001)
+	//remeber that '&' is a bitwise operation, and compares bit values which is what is done here
+	//if (fds[0].revents & POLLIN)//essentially checks if there is data to be read
+
+	 	//{
+		/* obtained data for the first file descriptor */
+		//this struct is able to hold the combined sensor data
+		//struct sensor_combined_s raw;
+
+		/* copy sensors raw data into local buffer (raw) */
+		//orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
+
+		// displays the data from it
+		//PX4_INFO("Accelerometer:\t%8.4f\t%8.4f\t%8.4f",
+					//(double)raw.accelerometer_m_s2[0],
+					//(double)raw.accelerometer_m_s2[1],
+					//(double)raw.accelerometer_m_s2[2]);
+		//}
+	//}	
+//--------------------------------------------------------------------------------------------------------
 	PX4_INFO("exiting");
 
-	return 0;
+	return OK;
 }
+
+

@@ -30,10 +30,24 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 ############################################################################
+
+
+#this method (px4_add_module) builds a static library (a collection of objects linked into a program
+	#during the buildprocess), useful in the case of PX4 for handling specific sensors, communication
+		#protocols like MAVLink etc
 px4_add_module(
+
+	#firmware unique name (px4_simple_app), prefixed by the parent directory that leads to 
+		#src (examples__)
 	MODULE examples__px4_simple_app
 	MAIN px4_simple_app
 	SRCS
 		px4_simple_app.c
 	DEPENDS
 	)
+	#Note:
+	#If you specify DYNAMIC as an option to px4_add_module, a shared library is created instead of a 
+	#static library on POSIX platforms (these can be loaded without having to recompile PX4, and 
+	#shared to others as binaries rather than source code). Your app will not become a builtin command,
+	#but ends up in a separate file called examples__px4_simple_app.px4mod. You can then run your 
+	#command by loading the file at runtime using the dyn command: dyn ./examples__px4_simple_app.px4mod
