@@ -1,29 +1,29 @@
 #  Creation & Implementation of a Task
 - Will provide an overview of all the steps required to create a task
 
-## Create a directory for the new flight task in PX4-Autopilot/src/modules/flight_mode_manager/tasks
-## Create empty source code and cmake files for the new flight task in the MyTask directory using the prefix "FlightTask":
+### 1. Create a directory for the new flight task in PX4-Autopilot/src/modules/flight_mode_manager/tasks
+### 2. Create empty source code and cmake files for the new flight task in the MyTask directory using the prefix "FlightTask":
 
 - CMakeLists.txt
 - FlightTaskMyTask.hpp
 - FlightTaskMyTask.cpp
 
-## Update CMakeLists.txt for the new task
+### 3. Update CMakeLists.txt for the new task
 - This .txt file is used to resolve the dependencies of the library
 
-## Update the header file (in this case FlightTaskMyTask.hpp): Most tasks reimplement the virtual methods activate() and update()
+### 4. Update the header file (in this case FlightTaskMyTask.hpp): Most tasks reimplement the virtual methods activate() and update()
 - The .hpp file basically defines the structure of a MyTask class
 
-## Update the cpp file as appropriate. This example provides as simple implementation of FlightTaskMyTask.cpp that simply indicates that the task methods are called.
+### 5. Update the cpp file as appropriate. This example provides as simple implementation of FlightTaskMyTask.cpp that simply indicates that the task methods are called.
 - See the .cpp file for more info
 
-## Add the new task to the list of tasks to be built in PX4-Autopilot/src/modules/flight_mode_manager/CMakeLists.txt
+### 6. Add the new task to the list of tasks to be built in PX4-Autopilot/src/modules/flight_mode_manager/CMakeLists.txt
 
-## Update a flight mode to ensure that the task is called. Usually a parameter is used to select when a particular flight task should be used.
+### 7. Update a flight mode to ensure that the task is called. Usually a parameter is used to select when a particular flight task should be used.
 
 For example, to enable our new MyTask in multicopter Position mode:
 
-    Update MPC_POS_MODE (mc_pos_control_params.c
+- Update MPC_POS_MODE (mc_pos_control_params.c
 
 (opens new window)) to add an option for selecting "MyTask" if the parameter has a previously unused value like 5:
 
@@ -35,7 +35,7 @@ For example, to enable our new MyTask in multicopter Position mode:
 PARAM_DEFINE_INT32(MPC_POS_MODE, 4);
 ```
 
-# Add a case for your new option in the switch for the parameter FlightModeManager.cpp to enable the task when _param_mpc_pos_mode has the right value.
+### 8. Add a case for your new option in the switch for the parameter FlightModeManager.cpp to enable the task when _param_mpc_pos_mode has the right value.
 
 ```cpp
 switch (_param_mpc_pos_mode.get()) {
